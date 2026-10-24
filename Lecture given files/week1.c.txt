@@ -1,0 +1,127 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <pthread.h>
+
+// Define a structure to hold the start and end for each thread (chunk of data or prime nums to found)
+struct Struct {
+  long long start;  // The start number for the thread's range for example thread one will start at 0
+  long long end;    // The end number for the thread's range
+};
+
+// This function will be run by each thread
+void *primeMethod(void *args) {
+
+	// call the struct or container to get the start and end for each thread
+  struct Struct *thread_struct = (struct Struct *)args;
+  
+  // Now, extract the start and end values from the struct/container
+  long long start = thread_struct->start;
+  long long end = thread_struct->end;
+  
+  // Get the thread ID (each thread has a unique ID)
+  pthread_t tid = pthread_self();
+  
+  long long primenum = 0;  // Counter for the prime numbers found in this thread
+  long long i, j;
+
+  // Loop through all numbers in the range assigned to this thread
+  for (i = start; i <= end; i++) {
+    for (j = 2; j <= i - 1; j++) {
+      if (i % j == 0) {  
+        break;
+      }
+    }
+    if (i == j) {
+      printf("%lld \n", i); 
+      primenum++;         
+    }
+  }
+
+  // Allocate memory to store the result (number of primes found by this thread)
+  long long *answer = malloc(sizeof(long long));
+  *answer = primenum;  // Store or pass the prime count in the allocated memory
+
+  // Print the result (how many primes were found by this thread)
+  printf("Thread number %lu found a total of Prime numbers %lld\n", tid, *answer);
+
+  // Return the result back to the main thread
+  pthread_exit(answer);
+
+
+}
+
+int main(int argc, char **argv) {
+ 
+  int nstart = 1, nfinish = 20000;
+  int compCount = nfinish;  // The total number of numbers to check or computations to be excuted by all threads
+  int threadCount = atoi(argv[1]);  // The number of threads to use 
+
+  int sliceList[threadCount];  // Array to store the slide or portion each threads should get or work on
+  int remainder = compCount % threadCount;  // Remainder when dividing the work between threads
+
+  struct Struct args[threadCount];  // Array of structures to pass to each thread
+  pthread_t tids[threadCount];  
+
+  // Split the total numbers into roughly equal slices/portions for each thread
+  for (int i = 0; i < threadCount; i++) {
+    sliceList[i] = compCount / threadCount;  // Each thread gets an equal share
+  }
+
+  // Distribute the remainder among the threads/ the first few threads will do extra work
+  for (int j = 0; j < remainder; j++) {
+    sliceList[j] = sliceList[j] + 1;  
+    }
+
+  int startList[threadCount];  // Array to store the start index for each thread's range
+  int finishList[threadCount];  // Array to store the finish index for each thread's range
+
+  // Calculate the start and finish values for each thread based on the slices
+  for (int k = 0; k < threadCount; k++) {
+    if (k == 0) {
+      startList[k] = 0;  // The first thread starts at index 0
+      finishList[k] = startList[k] + sliceList[k] - 1; 
+    } else {
+      startList[k] = finishList[k - 1] + 1;  
+      finishList[k] = startList[k] + sliceList[k] - 1;  
+    }
+  }
+
+
+  for (int l = 0; l < threadCount; l++) {
+    printf("%d ", sliceList[l]);
+  }
+  printf("\n");
+
+  
+  for (int i = 0; i < threadCount; i++) {
+    printf("start = %d     finish = %d\n", startList[i], finishList[i]);
+  }
+
+  // Create and start each thread, passing the appropriate end and start to each thread
+  for (int i = 0; i < threadCount; i++) {
+  //use the struct to pass the range from main to each thread
+    args[i].start = startList[i];
+    args[i].end = finishList[i];
+
+    pthread_attr_t attr;  // Create thread attributes
+    pthread_attr_init(&attr);  // Initialize the thread attributes
+    pthread_create(&tids[i], &attr, primeMethod, &args[i]);  // Create the thread
+  }
+
+  long long *result;  // Pointer to store the result from each thread (which will store different value after each thread finishes)
+  int total = 0;  // Variable to store the total number of prime numbers overall or accumulate all the results from each threads ==> total+=result
+
+  // Wait for all threads to finish and collect their results
+  for (int j = 0; j < threadCount; j++) {
+    pthread_join(tids[j], (void **)&result);  // Wait for thread to finish
+    total += *result;  // Add the result from this thread to the total
+  }
+
+  // Free the memory allocated by each thread (after all threads have finished)
+  free(result);
+
+
+  printf("%d number of threads  found  a total of %d  prime numbers\n",threadCount, total);
+
+  return 0;  
+}

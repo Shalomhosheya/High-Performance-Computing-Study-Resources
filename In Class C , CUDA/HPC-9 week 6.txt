@@ -1,0 +1,93 @@
+in 1st cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc --version
+!pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
+%load_ext nvcc4jupyter
+
+--------------------------------------------------------------------------------------------
+
+2nd cell 
+
+--------------------------------------------------------------------------------------------
+
+%%writefile PWCrack.cu
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
+
+#define N 26
+
+__global__ void genPW(unsigned char *letters, unsigned char *numbers)
+{
+    printf("%c%c%c%c\n",
+           letters[blockIdx.y],
+           letters[blockIdx.x],
+           numbers[threadIdx.y],
+           numbers[threadIdx.x]);
+}
+
+int main(void)
+{
+    // Letters: a-z
+    unsigned char letters[] = {
+        'a','b','c','d','e','f','g','h','i','j',
+        'k','l','m','n','o','p','q','r','s','t',
+        'u','v','w','x','y','z'
+    };
+
+    // Numbers: 0-9
+    unsigned char numbers[] = {
+        '0','1','2','3','4','5','6','7','8','9'
+    };
+
+    unsigned char *d_let;
+    unsigned char *d_num;
+
+    // Memory size
+    size_t letterSize = 26 * sizeof(unsigned char);
+    size_t numberSize = 10 * sizeof(unsigned char);
+
+    // Allocate GPU memory
+    cudaMalloc((void**)&d_let, letterSize);
+    cudaMalloc((void**)&d_num, numberSize);
+
+    // Copy data to GPU
+    cudaMemcpy(d_let, letters, letterSize,
+               cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_num, numbers, numberSize,
+               cudaMemcpyHostToDevice);
+
+    // Launch:
+    // 26 x 26 blocks
+    // 10 x 10 threads per block
+    genPW<<<dim3(26, 26, 1), dim3(10, 10, 1)>>>
+        (d_let, d_num);
+
+    // Wait for GPU to finish
+    cudaDeviceSynchronize();
+
+    // Free GPU memory
+    cudaFree(d_let);
+    cudaFree(d_num);
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------
+
+3rd cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc PWCrack.cu -o PWCrack
+
+4th cell
+
+!./PWCrack
+
+
+results will aa00 to zz99 

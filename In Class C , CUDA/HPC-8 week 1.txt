@@ -1,0 +1,40 @@
+in 1st cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc --version
+!pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
+%load_ext nvcc4jupyter
+
+--------------------------------------------------------------------------------------------
+
+2nd cell 
+
+--------------------------------------------------------------------------------------------
+
+%%writefile hello.cu
+
+#include <stdio.h>
+
+__global__ void cuda_hello() {
+    printf("\n Hello World from GPU Block ID %d Threads ID %d\n", blockIdx.x, threadIdx.x);
+}
+
+int main() {
+    printf("CPU Hello World!\n");
+
+    cuda_hello<<<2, 3>>>();
+
+    cudaDeviceSynchronize();
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------
+
+3rd cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc  hello.cu -o hello
+!./hello

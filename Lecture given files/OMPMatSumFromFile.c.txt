@@ -1,0 +1,122 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <omp.h>
+
+#define MAX_FILE_NAME 100
+
+
+int main(int argc, char *argv[]) {
+
+    FILE *fp;
+    int count = 0;
+    char c;
+    double **matrixA;
+    double **matrixB;
+    double **resultMatrix;
+    int numOfMatrices = 0;
+    int row = 0, col = 0;
+    int rows = 0, cols = 0;
+    int rowsA = 0, rowsB = 0, colsA = 0, colsB = 0;
+    char filename[MAX_FILE_NAME];
+    int threadCount;
+    double sum=0.0;
+    int i,j=0;
+
+    // Input filename and read matrices from file
+    printf("Enter the matrices file name: ");
+    scanf("%s", filename);
+
+    // Counting lines in file to understand the matrix structure
+    fp = fopen(filename, "r");
+    for (c = getc(fp); c != EOF; c = getc(fp)) {
+        if (c == '\n')
+            count++;
+    }
+    fclose(fp);
+
+    // Reading matrix data from file
+    fp = fopen(filename, "r");
+    for (int i = 0; i < count;) {
+        if (fscanf(fp, "%d,%d", &rows, &cols) == -1) {
+            i++;
+        } else {
+            numOfMatrices++;
+            double **matrix = malloc(rows * sizeof(double *));
+            for (row = 0; row < rows; row++) {
+                matrix[row] = malloc(cols * sizeof(double));
+                for (col = 0; col < cols - 1; col++) {
+                    fscanf(fp, "%lf,", &matrix[row][col]);
+                }
+                fscanf(fp, "%lf", &matrix[row][col]);
+            }
+            i++;
+
+            if (numOfMatrices == 1) {
+                matrixA = matrix;
+                rowsA = rows;
+                colsA = cols;
+            } else if (numOfMatrices == 2) {
+                matrixB = matrix;
+                rowsB = rows;
+                colsB = cols;
+
+                if (rowsA == rowsB & colsA==colsB) {
+                    // Matrix dimensions are compatible for multiplication
+                    printf("Matrix A is %dx%d and Matrix B is %dx%d. The addition CAN be done.\n", rowsA, colsA, rowsB, colsB);
+                    printf("How many threads do you want to use? Please enter a valid number: ");
+                    scanf("%d", &threadCount);
+
+                    // Allocate memory for the result matrix
+                    resultMatrix = malloc(rowsA * sizeof(double *));
+                    for (int i = 0; i < rowsA; i++) {
+                        resultMatrix[i] = malloc(colsB * sizeof(double));
+                    }
+
+                    // Set the number of threads in OpenMP
+                    omp_set_num_threads(threadCount);
+
+                    // Perform the matrix multiplication
+				        // Parallelise the outer loop using OpenMP
+					//#pragma omp parallel for private(i, j, k, sum) // Declare private variables for each thread
+					    // Parallelise matrix addition using OpenMP with reduction
+    				#pragma omp parallel for  shared(matrixA,matrixB, resultMatrix) private(i, j)reduction(+:sum)//Show with collapse(2)
+					for (i = 0; i < rowsA; i++) {
+					for (j = 0; j < colsB; j++) {
+						
+					   resultMatrix[i][j]=matrixA[i][j] + matrixB[i][j];
+						
+						
+						 sum += resultMatrix[i][j];
+						 printf("in the loop\n");
+					}
+					}
+					printf("Outside the loop\n");
+				    // Write the result matrix to a file
+                    FILE *file = fopen("result.txt", "w");
+                    fprintf(file, "%d , %d\n", rowsA, colsB);
+                    for (int i = 0; i < rowsA; i++) {
+                        for (int j = 0; j < colsB; j++) {
+                            fprintf(file, "%lf ", resultMatrix[i][j]);
+                        }
+                        fprintf(file, "\n");
+                    }
+                    fclose(file);
+                } else {
+                    printf("Matrix A is %dx%d and Matrix B is %dx%d. The multiplication CANNOT be done.\n", rowsA, colsA, rowsB, colsB);
+                }
+
+                numOfMatrices = 0;
+            }
+        }
+    }
+    fclose(fp);
+    free(matrixA);
+    free(matrixB);
+    free(resultMatrix);
+
+
+    return 0;
+}
+
+

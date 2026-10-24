@@ -1,0 +1,28 @@
+/******************************************************************************
+
+                            Online C Compiler.
+                Code, Compile, Run and Debug C program online.
+Write your code in this editor and press "Run" button to compile and execute it.
+
+*******************************************************************************/
+
+#include <stdio.h>
+
+int main()
+{
+    int lastM = 350, thisM = 425, units = 75;
+    float tot = 7500.00, tax = 1500.00, totPay = 9000.00;
+
+    printf("\n\t\tWater Bill\n");
+    printf("\t\t==========\n\n");
+
+    printf("Last month's meter : %d\n", lastM);
+    printf("This month's meter : %d\n\n", thisM);
+
+    printf("Units consumed     : %d\n", units);
+    printf("Total charge       : %.2f\n", tot);
+    printf("Tax (20%%)          : %.2f\n", tax);
+    printf("Total payable      : %.2f\n", totPay);
+
+    return 0;
+}

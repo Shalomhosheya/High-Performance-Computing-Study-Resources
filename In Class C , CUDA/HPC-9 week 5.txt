@@ -1,0 +1,89 @@
+in 1st cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc --version
+!pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
+%load_ext nvcc4jupyter
+
+--------------------------------------------------------------------------------------------
+
+2nd cell 
+
+--------------------------------------------------------------------------------------------
+
+%%writefile PWCrack.cu
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
+
+#define N 26
+
+__global__ void genPW(unsigned char *letters, unsigned char *numbers)
+{
+    int i = threadIdx.x;
+
+    if (i < 10)
+    {
+        printf("\n%c%c%c%c",
+               letters[0],
+               letters[0],
+               numbers[0],
+               numbers[i]);
+    }
+}
+
+int main(void)
+{
+    // Host arrays
+    unsigned char letters[] = {'a', 'b', 'c', 'd', 'e',};
+    unsigned char numbers[] = {'0', '1', '2', '3', '4',
+                               '5', '6', '7', '8', '9'};
+
+    // Device pointers
+    unsigned char *d_let;
+    unsigned char *d_num;
+
+    // Correct sizes
+    size_t letterSize = 5 * sizeof(unsigned char);
+    size_t numberSize = 10 * sizeof(unsigned char);
+
+    // Allocate device memory
+    cudaMalloc((void **)&d_let, letterSize);
+    cudaMalloc((void **)&d_num, numberSize);
+
+    // Copy data from host to device
+    cudaMemcpy(d_let, letters, letterSize,
+               cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_num, numbers, numberSize,
+               cudaMemcpyHostToDevice);
+
+    // Launch 10 threads
+    genPW<<<1, 10>>>(d_let, d_num);
+
+    // Wait for GPU to finish
+    cudaDeviceSynchronize();
+
+    // Free device memory
+    cudaFree(d_let);
+    cudaFree(d_num);
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------
+
+3rd cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc PWCrack.cu -o PWCrack
+
+4th cell
+
+!./PWCrack
+
+
+results will aa00 to aa09 

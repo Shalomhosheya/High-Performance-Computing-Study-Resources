@@ -1,0 +1,57 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+
+struct threadArgs
+{
+    int start;
+    int end;
+    int *numbers;
+};
+
+void *printThread(void *argp);
+
+int main(int argc, char *argv[])
+{
+    int i;
+    int noOfElements = 50;
+    int noOfThreads = 2;
+    
+    printf("\n Enter No of Elements : ");
+    scanf("%d", &noOfElements);
+
+    int *numbers = malloc(sizeof(int) * noOfElements);
+    for ( i=0; i<noOfElements; i++)
+        numbers [i] = rand()%100;    
+        
+    if (argc>=2) noOfThreads = atoi(argv[1]);
+    
+    pthread_t thrID [noOfThreads];
+    struct threadArgs args [noOfThreads];
+    
+    int chunkSize = noOfElements / noOfThreads;
+    
+    for ( i=0; i<noOfThreads; i++)
+    {
+        args[i].start = i * chunkSize;
+        args[i].end = i * chunkSize + chunkSize;
+        args[i].numbers = numbers;
+    
+        pthread_create(&thrID[i], NULL, printThread, &args[i]);
+    }
+
+    for ( i=0; i<noOfThreads; i++)
+    {
+        pthread_join(thrID[i], NULL);
+    }
+    return 0;
+}
+
+void *printThread(void *argsp)
+{
+    struct threadArgs *args = (struct threadArgs *) argsp;
+    
+    for (int i=args->start; i<args->end; i++)
+        printf("\n Thread ID %ld: i=%d", pthread_self(), args->numbers[i]);
+}

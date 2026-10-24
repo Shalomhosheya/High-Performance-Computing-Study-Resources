@@ -1,0 +1,197 @@
+in 1st cell
+
+--------------------------------------------------------------------------------------------
+
+!nvidia-smi
+
+!nvcc --version
+
+--------------------------------------------------------------------------------------------
+
+2nd cell  Create SobelEdge.cu
+ 
+--------------------------------------------------------------------------------------------
+
+%%writefile SobelEdge.cu
+
+#include <stdio.h>
+#include <stdlib.h>
+
+__global__ void sobelEdge(char *inImg, char *outImg, int *width, int *height)
+{
+    
+}
+
+int main(int argc, char *argv[])
+{
+    char *c_inImg, *c_outImg;
+    int c_width, c_height;
+
+    c_width = 640;
+    c_height = 480;
+
+    int imgSize, intSize;
+
+    imgSize = 4 * c_width * c_height;
+    intSize = sizeof(int);
+
+    c_inImg = (char *)malloc(imgSize);
+    c_outImg = (char *)malloc(imgSize);
+
+    char *d_inImg, *d_outImg;
+    int *d_width, *d_height;
+
+    cudaMalloc((void **)&d_inImg, imgSize);
+    cudaMalloc((void **)&d_outImg, imgSize);
+    cudaMalloc((void **)&d_width, intSize);
+    cudaMalloc((void **)&d_height, intSize);
+
+    cudaMemcpy(d_inImg, c_inImg, imgSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_width, &c_width, intSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_height, &c_height, intSize, cudaMemcpyHostToDevice);
+
+    sobelEdge<<<2,5>>>(d_inImg, d_outImg, d_width, d_height);
+
+    cudaDeviceSynchronize();
+
+    cudaMemcpy(c_outImg, d_outImg, imgSize, cudaMemcpyDeviceToHost);
+
+    free(c_inImg);
+    free(c_outImg);
+
+    cudaFree(d_inImg);
+    cudaFree(d_outImg);
+    cudaFree(d_width);
+    cudaFree(d_height);
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------
+
+3rd cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc SobelEdge.cu -o SobelEdge
+!./SobelEdge
+
+--------------------------------------------------------------------------------------------
+
+4th cell Create PWCrack.cu
+
+--------------------------------------------------------------------------------------------
+
+%%writefile PWCrack.cu
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define N 26
+
+__device__ char* cudaCrypt(char* rawPassword)
+{
+    char newPassword[11];
+
+    newPassword[0] = rawPassword[0] + 2;
+    newPassword[1] = rawPassword[0] - 2;
+    newPassword[2] = rawPassword[0] + 1;
+    newPassword[3] = rawPassword[1] + 3;
+    newPassword[4] = rawPassword[1] - 3;
+    newPassword[5] = rawPassword[1] - 1;
+    newPassword[6] = rawPassword[2] + 2;
+    newPassword[7] = rawPassword[2] - 2;
+    newPassword[8] = rawPassword[3] + 4;
+    newPassword[9] = rawPassword[3] - 4;
+    newPassword[10] = '\0';
+
+    for(int i = 0; i < 10; i++)
+    {
+        if(i >= 0 && i < 6)
+        {
+            if(newPassword[i] > 122)
+            {
+                newPassword[i] = (newPassword[i] - 122) + 97;
+            }
+            else if(newPassword[i] < 97)
+            {
+                newPassword[i] = (97 - newPassword[i]) + 97;
+            }
+        }
+        else
+        {
+            if(newPassword[i] > 57)
+            {
+                newPassword[i] = (newPassword[i] - 57) + 48;
+            }
+            else if(newPassword[i] < 48)
+            {
+                newPassword[i] = (48 - newPassword[i]) + 48;
+            }
+        }
+    }
+
+    return newPassword;
+}
+
+__global__ void genPW(unsigned char *letters, unsigned char *numbers)
+{
+    char newPw[4];
+
+    newPw[0] = letters[blockIdx.y];
+    newPw[1] = letters[blockIdx.x];
+    newPw[2] = numbers[threadIdx.y];
+    newPw[3] = numbers[threadIdx.x];
+
+    printf("\n%c %c %c %c => %s",
+        letters[blockIdx.y],
+        letters[blockIdx.x],
+        numbers[threadIdx.y],
+        numbers[threadIdx.x],
+        cudaCrypt(newPw));
+}
+
+int main()
+{
+    unsigned char letters[] =
+    {
+        'a','b','c','d','e','f','g','h','i','j',
+        'k','l','m','n','o','p','q','r','s','t',
+        'u','v','w','x','y','z'
+    };
+
+    unsigned char numbers[] =
+    {
+        '0','1','2','3','4','5','6','7','8','9'
+    };
+
+    unsigned char *d_let, *d_num;
+
+    unsigned char letterSize = 26 * sizeof(unsigned char);
+    unsigned char numberSize = 10 * sizeof(unsigned char);
+
+    cudaMalloc((void **)&d_let, letterSize);
+    cudaMalloc((void **)&d_num, numberSize);
+
+    cudaMemcpy(d_let, letters, letterSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_num, numbers, numberSize, cudaMemcpyHostToDevice);
+
+    genPW<<<dim3(26,26,1), dim3(10,10,1)>>>(d_let, d_num);
+
+    cudaDeviceSynchronize();
+
+    cudaFree(d_let);
+    cudaFree(d_num);
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------
+
+5th cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc PWCrack.cu -o PWCrack
+!./PWCrack

@@ -1,0 +1,377 @@
+in 1st cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc --version
+
+!pip install -q git+https://github.com/andreinechaev/nvcc4jupyter.git
+
+%load_ext nvcc4jupyter
+
+--------------------------------------------------------------------------------------------
+
+2nd cell 
+
+--------------------------------------------------------------------------------------------
+
+!wget -q https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h
+!wget -q https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp
+
+!wget -q https://i.ibb.co/5gB80K0Z/download.png -O input.png
+
+--------------------------------------------------------------------------------------------
+
+3rd cell
+
+--------------------------------------------------------------------------------------------
+
+%%writefile SobelEdge.cu
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "lodepng.h"
+
+const int ERROR_EXIT_VALUE = -1;
+
+
+/*
+ * CUDA Sobel Edge Detection Kernel
+ *
+ * Image format:
+ * RGBA
+ *
+ * Each pixel contains:
+ * R = pixel[0]
+ * G = pixel[1]
+ * B = pixel[2]
+ * A = pixel[3]
+ */
+
+__global__ void sobelEdge(
+    unsigned char *inImg,
+    unsigned char *outImg,
+    unsigned int width,
+    unsigned int height
+)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    // Ignore pixels outside image
+    if (x >= width || y >= height)
+    {
+        return;
+    }
+
+    int index = (y * width + x) * 4;
+
+    // Border pixels
+    if (x == 0 || y == 0 || x == width - 1 || y == height - 1)
+    {
+        outImg[index]     = 0;
+        outImg[index + 1] = 0;
+        outImg[index + 2] = 0;
+        outImg[index + 3] = 255;
+
+        return;
+    }
+
+    int gx[3][3] =
+    {
+        {-1, 0, 1},
+        {-2, 0, 2},
+        {-1, 0, 1}
+    };
+
+    int gy[3][3] =
+    {
+        {-1, -2, -1},
+        { 0,  0,  0},
+        { 1,  2,  1}
+    };
+
+    float Gx = 0.0f;
+    float Gy = 0.0f;
+
+    for (int ky = -1; ky <= 1; ky++)
+    {
+        for (int kx = -1; kx <= 1; kx++)
+        {
+            int pixelX = x + kx;
+            int pixelY = y + ky;
+
+            int pixelIndex = (pixelY * width + pixelX) * 4;
+
+            unsigned char r = inImg[pixelIndex];
+            unsigned char g = inImg[pixelIndex + 1];
+            unsigned char b = inImg[pixelIndex + 2];
+
+            // Convert RGB to grayscale
+            float gray =
+                0.299f * r +
+                0.587f * g +
+                0.114f * b;
+
+            Gx += gray * gx[ky + 1][kx + 1];
+            Gy += gray * gy[ky + 1][kx + 1];
+        }
+    }
+
+    float magnitude = sqrtf(Gx * Gx + Gy * Gy);
+
+    if (magnitude > 255.0f)
+    {
+        magnitude = 255.0f;
+    }
+
+    unsigned char edge = (unsigned char)magnitude;
+
+    outImg[index]     = edge;
+    outImg[index + 1] = edge;
+    outImg[index + 2] = edge;
+    outImg[index + 3] = 255;
+}
+
+
+int main(int argc, char *argv[])
+{
+    unsigned char *c_inImg = NULL;
+    unsigned char *c_outImg = NULL;
+
+    unsigned int c_width = 0;
+    unsigned int c_height = 0;
+
+    char *inFileName;
+    char *outFileName;
+
+    /*
+     * Check command line arguments
+     *
+     * argv[1] = input image
+     * argv[2] = output image
+     */
+
+    if (argc > 2)
+    {
+        inFileName = argv[1];
+        outFileName = argv[2];
+    }
+    else
+    {
+        inFileName = (char *)"input.png";
+        outFileName = (char *)"SobelOutput.png";
+    }
+
+
+    /*
+     * Decode PNG image
+     */
+
+    unsigned int lodepng_error;
+
+    lodepng_error = lodepng_decode32_file(
+        &c_inImg,
+        &c_width,
+        &c_height,
+        inFileName
+    );
+
+    if (lodepng_error)
+    {
+        printf(
+            "Error decoding png file: '%u' '%s'\n",
+            lodepng_error,
+            lodepng_error_text(lodepng_error)
+        );
+
+        return ERROR_EXIT_VALUE;
+    }
+
+
+    /*
+     * Check image dimensions
+     */
+
+    if (c_width == 0 || c_height == 0)
+    {
+        printf(
+            "Unable to decode image. Validate file and try again\n"
+        );
+
+        free(c_inImg);
+
+        return ERROR_EXIT_VALUE;
+    }
+
+
+    printf(
+        "Img width (%u) & height (%u)\n",
+        c_width,
+        c_height
+    );
+
+
+    /*
+     * Calculate image size
+     *
+     * 4 bytes per pixel:
+     * R G B A
+     */
+
+    unsigned int imgSize = 4 * c_width * c_height;
+
+
+    /*
+     * Allocate output image
+     */
+
+    c_outImg = (unsigned char *)malloc(imgSize);
+
+    if (c_outImg == NULL)
+    {
+        printf("Unable to allocate output image memory\n");
+
+        free(c_inImg);
+
+        return ERROR_EXIT_VALUE;
+    }
+
+
+    /*
+     * Device variables
+     */
+
+    unsigned char *d_inImg;
+    unsigned char *d_outImg;
+
+
+    /*
+     * Allocate GPU memory
+     */
+
+    cudaMalloc(
+        (void **)&d_inImg,
+        imgSize
+    );
+
+    cudaMalloc(
+        (void **)&d_outImg,
+        imgSize
+    );
+
+
+    /*
+     * Copy input image:
+     * CPU -> GPU
+     */
+
+    cudaMemcpy(
+        d_inImg,
+        c_inImg,
+        imgSize,
+        cudaMemcpyHostToDevice
+    );
+
+
+    /*
+     * Define CUDA block and grid
+     */
+
+    dim3 blockSize(16, 16);
+
+    dim3 gridSize(
+        (c_width + blockSize.x - 1) / blockSize.x,
+        (c_height + blockSize.y - 1) / blockSize.y
+    );
+
+
+    /*
+     * Run Sobel CUDA kernel
+     */
+
+    sobelEdge<<<gridSize, blockSize>>>(
+        d_inImg,
+        d_outImg,
+        c_width,
+        c_height
+    );
+
+
+    /*
+     * Wait for GPU
+     */
+
+    cudaDeviceSynchronize();
+
+
+    /*
+     * Copy result:
+     * GPU -> CPU
+     */
+
+    cudaMemcpy(
+        c_outImg,
+        d_outImg,
+        imgSize,
+        cudaMemcpyDeviceToHost
+    );
+
+
+    /*
+     * Save output PNG
+     */
+
+    lodepng_error = lodepng_encode32_file(
+        outFileName,
+        c_outImg,
+        c_width,
+        c_height
+    );
+
+
+    if (lodepng_error)
+    {
+        printf(
+            "Error encoding png file: '%u' '%s'\n",
+            lodepng_error,
+            lodepng_error_text(lodepng_error)
+        );
+    }
+    else
+    {
+        printf(
+            "Sobel image saved successfully: %s\n",
+            outFileName
+        );
+    }
+
+
+    /*
+     * Free CPU memory
+     */
+
+    free(c_inImg);
+    free(c_outImg);
+
+
+    /*
+     * Free GPU memory
+     */
+
+    cudaFree(d_inImg);
+    cudaFree(d_outImg);
+
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------
+
+4th cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc -o SobelEdge SobelEdge.cu lodepng.cpp
+!./SobelEdge
+

@@ -1,0 +1,75 @@
+in 1st cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc --version
+!pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
+%load_ext nvcc4jupyter
+
+--------------------------------------------------------------------------------------------
+
+2nd cell 
+
+--------------------------------------------------------------------------------------------
+
+%%writefile ADDTWONos.cu
+
+#include <stdio.h>
+#include <cuda_runtime.h>
+
+__global__ void add(int *a, int *b, int *c)
+{
+    *c = *a + *b;
+}
+
+int main(void)
+{
+    int a, b, c;
+
+    int *d_a, *d_b, *d_c;
+
+    int size = sizeof(int);
+
+    // Setup input values
+    a = 2;
+    b = 7;
+
+    // Allocate space for device copies
+    cudaMalloc((void**)&d_a, size);
+    cudaMalloc((void**)&d_b, size);
+    cudaMalloc((void**)&d_c, size);
+
+    // Copy inputs to device
+    cudaMemcpy(d_a, &a, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, &b, size, cudaMemcpyHostToDevice);
+
+    // Launch add() kernel on GPU
+    add<<<1, 1>>>(d_a, d_b, d_c);
+
+    // Wait for GPU to finish
+    cudaDeviceSynchronize();
+
+    // Copy result back to host
+    cudaMemcpy(&c, d_c, size, cudaMemcpyDeviceToHost);
+
+    // Print result
+    printf("Result: %d + %d = %d\n", a, b, c);
+
+    // Print only c
+    printf("c = %d\n", c);
+
+    // Cleanup
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+
+    return 0;
+}
+--------------------------------------------------------------------------------------------
+
+3rd cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc ADDTWONos.cu -o ADDTWONos
+!./ADDTWONos

@@ -1,0 +1,320 @@
+in 1st cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc --version
+!pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
+%load_ext nvcc4jupyter
+
+--------------------------------------------------------------------------------------------
+
+2nd cell 
+
+--------------------------------------------------------------------------------------------
+
+%%writefile MatrixMultiplication.cu
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define AR 3
+#define AC 4
+#define BR 4
+#define BC 2
+
+// ----------------------------------------------------
+// Fill array with values
+// ----------------------------------------------------
+void random_ints(int *a, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        a[i] = i + 1;
+    }
+}
+
+// ----------------------------------------------------
+// CUDA Kernel
+// Matrix multiplication: C = A x B
+// A = AR x AC
+// B = BR x BC
+// C = AR x BC
+// ----------------------------------------------------
+__global__ void add(
+    int *a,
+    int *b,
+    int *c,
+    int *mAn,
+    int *mBn,
+    int *mCn,
+    int *aC)
+{
+    int iA = 0;
+    int iB = 0;
+    int iC = 0;
+
+    // Number of columns in B
+    int cC = *mBn / *aC;
+
+    // Each CUDA thread calculates one element of C
+    iC = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Loop through the common dimension
+    for (int i = 0; i < *aC; i++)
+    {
+        // Row element from A
+        iA = blockIdx.x * blockDim.x + i;
+
+        // Corresponding element from B
+        iB = i * cC + threadIdx.x;
+
+        // Check boundaries
+        if (iA < *mAn && iB < *mBn && iC < *mCn)
+        {
+            c[iC] += a[iA] * b[iB];
+        }
+    }
+}
+
+// ----------------------------------------------------
+// MAIN
+// ----------------------------------------------------
+int main(void)
+{
+    // Host copies
+    int *a;
+    int *b;
+    int *c;
+
+    // Device copies
+    int *d_a;
+    int *d_b;
+    int *d_c;
+
+    // Size in bytes
+    int mASize = AR * AC * sizeof(int);
+    int mBSize = BR * BC * sizeof(int);
+    int mCSize = AR * BC * sizeof(int);
+
+    // Number of elements
+    int mAn = AR * AC;
+    int mBn = BR * BC;
+    int mCn = AR * BC;
+
+    printf("Matrix sizes:\n");
+    printf("A = %d elements\n", mAn);
+    printf("B = %d elements\n", mBn);
+    printf("C = %d elements\n\n", mCn);
+
+    // ------------------------------------------------
+    // Allocate host memory
+    // ------------------------------------------------
+    c = (int *)malloc(mCSize);
+    a = (int *)malloc(mASize);
+    b = (int *)malloc(mBSize);
+
+    if (a == NULL || b == NULL || c == NULL)
+    {
+        printf("Host memory allocation failed!\n");
+        return 1;
+    }
+
+    // ------------------------------------------------
+    // Initialize matrices
+    // ------------------------------------------------
+    random_ints(a, mAn);
+    random_ints(b, mBn);
+
+    // Initialize C with zeros
+    for (int i = 0; i < mCn; i++)
+    {
+        c[i] = 0;
+    }
+
+    // ------------------------------------------------
+    // Allocate device memory
+    // ------------------------------------------------
+    cudaMalloc((void **)&d_a, mASize);
+    cudaMalloc((void **)&d_b, mBSize);
+    cudaMalloc((void **)&d_c, mCSize);
+
+    // ------------------------------------------------
+    // Copy inputs from host to device
+    // ------------------------------------------------
+    cudaMemcpy(
+        d_a,
+        a,
+        mASize,
+        cudaMemcpyHostToDevice
+    );
+
+    cudaMemcpy(
+        d_b,
+        b,
+        mBSize,
+        cudaMemcpyHostToDevice
+    );
+
+    cudaMemcpy(
+        d_c,
+        c,
+        mCSize,
+        cudaMemcpyHostToDevice
+    );
+
+    // ------------------------------------------------
+    // Allocate device variables for sizes
+    // ------------------------------------------------
+    int *d_mAn;
+    int *d_mBn;
+    int *d_mCn;
+    int *d_aC;
+
+    cudaMalloc((void **)&d_mAn, sizeof(int));
+    cudaMalloc((void **)&d_mBn, sizeof(int));
+    cudaMalloc((void **)&d_mCn, sizeof(int));
+    cudaMalloc((void **)&d_aC, sizeof(int));
+
+    // AC is the common dimension
+    int aC = AC;
+
+    // Copy size information to device
+    cudaMemcpy(
+        d_mAn,
+        &mAn,
+        sizeof(int),
+        cudaMemcpyHostToDevice
+    );
+
+    cudaMemcpy(
+        d_mBn,
+        &mBn,
+        sizeof(int),
+        cudaMemcpyHostToDevice
+    );
+
+    cudaMemcpy(
+        d_mCn,
+        &mCn,
+        sizeof(int),
+        cudaMemcpyHostToDevice
+    );
+
+    cudaMemcpy(
+        d_aC,
+        &aC,
+        sizeof(int),
+        cudaMemcpyHostToDevice
+    );
+
+    // ------------------------------------------------
+    // Launch CUDA kernel
+    //
+    // AR = 3 blocks
+    // BC = 2 threads per block
+    //
+    // Total threads = 3 x 2 = 6
+    // One thread calculates one element of C
+    // ------------------------------------------------
+    add<<<AR, BC>>>(
+        d_a,
+        d_b,
+        d_c,
+        d_mAn,
+        d_mBn,
+        d_mCn,
+        d_aC
+    );
+
+    // Wait for GPU to finish
+    cudaDeviceSynchronize();
+
+    // ------------------------------------------------
+    // Copy result from device to host
+    // ------------------------------------------------
+    cudaMemcpy(
+        c,
+        d_c,
+        mCSize,
+        cudaMemcpyDeviceToHost
+    );
+
+    // ------------------------------------------------
+    // Print Matrix A
+    // ------------------------------------------------
+    printf("\nMatrix A (%d x %d):\n", AR, AC);
+
+    for (int i = 0; i < AR; i++)
+    {
+        for (int j = 0; j < AC; j++)
+        {
+            printf("%d\t", a[i * AC + j]);
+        }
+
+        printf("\n");
+    }
+
+    // ------------------------------------------------
+    // Print Matrix B
+    // ------------------------------------------------
+    printf("\nMatrix B (%d x %d):\n", BR, BC);
+
+    for (int i = 0; i < BR; i++)
+    {
+        for (int j = 0; j < BC; j++)
+        {
+            printf("%d\t", b[i * BC + j]);
+        }
+
+        printf("\n");
+    }
+
+    // ------------------------------------------------
+    // Print Matrix C
+    // ------------------------------------------------
+    printf("\nMatrix C = A x B (%d x %d):\n", AR, BC);
+
+    for (int i = 0; i < AR; i++)
+    {
+        for (int j = 0; j < BC; j++)
+        {
+            printf("%d\t", c[i * BC + j]);
+        }
+
+        printf("\n");
+    }
+
+    // ------------------------------------------------
+    // Free device memory
+    // ------------------------------------------------
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+
+    cudaFree(d_mAn);
+    cudaFree(d_mBn);
+    cudaFree(d_mCn);
+    cudaFree(d_aC);
+
+    // ------------------------------------------------
+    // Free host memory
+    // ------------------------------------------------
+    free(a);
+    free(b);
+    free(c);
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------
+
+3rd cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc MatrixMultiplication.cu -o MatrixMultiplication
+
+4th cell
+
+!./MatrixMultiplication

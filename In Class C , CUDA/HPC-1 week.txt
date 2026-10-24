@@ -1,0 +1,54 @@
+/******************************************************************************
+
+                            Online C Compiler.
+                Code, Compile, Run and Debug C program online.
+Write your code in this editor and press "Run" button to compile and execute it.
+
+*******************************************************************************/
+
+#include <stdio.h>
+
+int main()
+{
+    printf("Hello World\n"); 
+    printf("Welcome to C\n");
+    
+    printf("\nHello \nWorld"); 
+    printf("\n"); 
+    printf("\nWelcome \nto \nC \n\n");
+    
+    printf("Name            : Dhinusha Ravi\n"); 
+    printf("Date of Birth   : 2001-08-07\n");
+    printf("Address         : No 159/5,\n");
+    printf("                  New Kandy Rd,\n");
+    printf("                  Pittugala, Malabe\n\n");
+    
+    printf("Name            : Dhinusha Ravi\n"); 
+    printf("Date of Birth   : 2001-08-07\n");
+    printf("Address         : No 159/5,\n                  New Kandy Rd,\n                  Pittugala, Malabe\n\n");
+    
+    printf("\n\"Hello\" \nWorld\?"); 
+    printf("\n\the\n"); 
+    printf("\n\'Welcome\to\\nC\n\n");
+    
+    printf("Name            = Saman Perera\n"); 
+    printf("\nAge             = 21 years\n");
+    printf("\nAddress         = No 53\\4A,\n");
+    printf("                 \"Samadi\",\n");
+    printf("                  Main Street, \n");
+    printf("                  Kandy.\n\n");
+    
+    printf("My name is %s. I am %d years old. I got %c for Programming and my current GPA is %f.", "Amal", 22, 'A', 3.36);
+    
+    printf("\n %s is my brother. He is %d years old. He won %cst place in the race and got Rs %4.2f.", "Nimal", 28, '1', 2500.00);
+
+    return 0;
+}
+
+//this is a comment
+
+/* This 
+is 
+lines
+comment*/
+

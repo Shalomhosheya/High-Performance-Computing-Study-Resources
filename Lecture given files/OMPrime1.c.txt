@@ -1,0 +1,73 @@
+#include <stdio.h>
+#include <stdlib.h>
+#define MAX_FILE_NAME 100 
+#include <math.h>
+#include <omp.h>
+int main(int argc, char** argv){
+	FILE *fp;
+	int count = 0;
+	char filename[MAX_FILE_NAME]="PrimeData2.txt"; 
+	char c;
+	int i,j,primenum;
+	//enter the file name
+	//printf("Enter file name: "); 
+ 	
+	//scanf("%s", filename); 
+	//open the file to count the number of lines
+	fp = fopen(filename, "r");
+	// Check if file exists 
+    if (fp== NULL) 
+    { 
+        printf("Could not open file %s\n", filename); 
+       return 0; 
+    } 
+  	// Extract characters from file and store in character c 
+	for (c = getc(fp); c != EOF; c = getc(fp)) {
+        if (c == '\n') // Increment count if this character is newline 
+            count = count + 1; 
+	}
+	printf("the file contains %d lines\n ",count);
+	fclose(fp);
+
+	
+	int *numbers;
+	numbers= malloc(count*sizeof(int));
+	//open the file to retrieve numbers 
+	fp = fopen(filename, "r");
+	for(int i=0;i<count;i++){
+		fscanf(fp,"%d",&numbers[i]);
+	
+	}
+	fclose(fp);
+	int * primes=malloc (count*sizeof(int));
+	#pragma omp parallel for private(i, j) shared(primenum, primes)
+
+	for (i=0;i<=count; i++){
+		printf("Number of threads running = %d\n",omp_get_num_threads());
+	//int primes[primenum]; 
+		for (j=2; j<=numbers[i];j++){
+				if(numbers[i]%j ==0){
+					break;	
+				}
+		}
+		if (numbers[i]==j){
+			//write each prime number in the file
+			//fprintf(file,"%d \n",numbers[i]);
+			
+			//printf("prime number found =%d \n",numbers[i]);
+			primenum++;	
+			primes[primenum] = numbers[i]; 
+			//printf("Prime number found = %d \n",primes[primenum]);
+					
+		}
+		
+	}
+	//printf(len(primes));
+	printf("Total prime numbers found = %d \n",primenum);
+	
+	    // Free allocated memory
+    free(numbers);
+    free(primes);
+    return 0;
+}
+

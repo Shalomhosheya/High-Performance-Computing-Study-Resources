@@ -1,0 +1,113 @@
+#include <stdio.h>
+#include <omp.h>
+#include <stdlib.h>
+
+
+void add(double **A,double **B, double **R, int rows, int cols ){
+		#pragma omp parallel for collapse(2)
+		for( int row=0;row<rows;row++){				
+				for(int col=0;col<cols-1;col++){
+				R[row][col]=A[row][col]+B[row][col];
+				}				
+		}
+}
+
+
+
+
+int main() {
+	FILE *fp;
+	int count=0;
+	char c;
+	double ** matrixA, **matrixB,**result;
+	int numOfMatrices=0;
+	
+	int rows,cols, rowsA, rowsB, colsA,colsB;
+	int row,col;
+	
+	fp=fopen("Matrices.txt","r");
+	for( c=getc(fp); c!=EOF; c=getc(fp)){
+		if (c=='\n'){
+			count++;
+		}
+	}
+	
+	fclose(fp);
+	
+	fp=fopen("Matrices.txt","r");
+	
+	for(int i=0;i<count;){
+		
+		if (fscanf(fp, "%d,%d", &rows,&cols)==-1){		
+			i++;		
+		}else{
+			numOfMatrices++;
+			double **matrix =malloc(rows*sizeof(double *));
+			for( row=0;row<rows;row++){
+				matrix[row] =malloc(cols*sizeof(double));
+				for(col=0;col<cols-1;col++){
+					fscanf(fp, "%lf,", &matrix[row][col]);				
+				}
+				fscanf(fp, "%lf", &matrix[row][cols]);	
+			}
+			i++;
+			
+			if(numOfMatrices==1){
+				matrixA=matrix;
+				rowsA=rows;
+				colsA=cols;
+				
+			}else if (numOfMatrices==2){
+				matrixB=matrix;
+				rowsB=rows;
+				colsB=cols;
+				
+				if (rowsA==rowsB && colsA==colsB){
+					
+					omp_set_num_threads(10);
+					// Matrix dimensions are compatible for multiplication
+                    printf("Matrix A is %dx%d and Matrix B is %dx%d. The addition CAN be done.\n", rowsA, colsA, rowsB, colsB);
+					
+						result =malloc(rowsA*sizeof(double*));
+						for(int i=0;i<rowsA;i++){
+							result[i] =malloc(colsA*sizeof(double));
+						}
+						add(matrixA,matrixB,result,rowsA,colsA);
+						
+					for( int row=0;row<rowsA;row++){				
+						for(int col=0;col<colsA;col++){
+							printf("%lf",result[row][col]);
+							
+						}
+					printf("\n");
+					}
+					
+					
+						printf("\n");
+						
+						printf("\n");
+							printf("\n");
+							printf("\n");
+					
+				}else{
+				printf("Matrix A is %dx%d and Matrix B is %dx%d. The addition CANNOT be done.\n", rowsA, colsA, rowsB, colsB);
+				}
+				
+				numOfMatrices=0;
+
+			}
+		
+		
+		
+		}
+	
+	
+	}
+	
+	fclose(fp);
+	free(matrixA);
+	free(matrixB);
+	free(result);
+	
+    return 0;
+}

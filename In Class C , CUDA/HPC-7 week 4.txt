@@ -1,0 +1,213 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+
+struct args
+{
+    int **mA;
+    int **mB;
+    int **mC;
+    int rA, cA, rB, cB;
+};
+
+void MatrixMatrixAddition(struct args *arg);
+
+int main()
+{
+    int **mA;
+    int **mB;
+    int **mC;
+
+    int rA = 3, cA = 4;
+    int rB = 3, cB = 4;
+    int rC = rA, cC = cA;
+
+    int i, r, c;
+
+    /* Allocate Matrix A */
+    mA = (int **)malloc(rA * sizeof(int *));
+    for (i = 0; i < rA; i++)
+    {
+        mA[i] = (int *)malloc(cA * sizeof(int));
+    }
+
+    /* Allocate Matrix B */
+    mB = (int **)malloc(rB * sizeof(int *));
+    for (i = 0; i < rB; i++)
+    {
+        mB[i] = (int *)malloc(cB * sizeof(int));
+    }
+
+    /* Allocate Matrix C */
+    mC = (int **)malloc(rC * sizeof(int *));
+    for (i = 0; i < rC; i++)
+    {
+        mC[i] = (int *)malloc(cC * sizeof(int));
+    }
+
+    FILE *fileIn;
+    FILE *fileOut;
+
+    /*
+     * Read matrices from file
+     */
+    fileIn = fopen("matrix.txt", "r");
+
+    if (fileIn != NULL)
+    {
+        printf("File opened successfully in read mode.\n\n");
+
+        /* Read Matrix A */
+        for (r = 0; r < rA; r++)
+        {
+            for (c = 0; c < cA; c++)
+            {
+                if (fscanf(fileIn, "%d", &mA[r][c]) != 1)
+                {
+                    printf("Error reading Matrix A.\n");
+                    return 1;
+                }
+            }
+        }
+
+        /* Read Matrix B */
+        for (r = 0; r < rB; r++)
+        {
+            for (c = 0; c < cB; c++)
+            {
+                if (fscanf(fileIn, "%d", &mB[r][c]) != 1)
+                {
+                    printf("Error reading Matrix B.\n");
+                    return 1;
+                }
+            }
+        }
+
+        fclose(fileIn);
+    }
+    else
+    {
+        printf("The file is not present!\n");
+        return 1;
+    }
+
+    /* Display Matrix A */
+    printf("Matrix A:\n");
+
+    for (r = 0; r < rA; r++)
+    {
+        for (c = 0; c < cA; c++)
+        {
+            printf("%d\t", mA[r][c]);
+        }
+        printf("\n");
+    }
+
+    /* Display Matrix B */
+    printf("\nMatrix B:\n");
+
+    for (r = 0; r < rB; r++)
+    {
+        for (c = 0; c < cB; c++)
+        {
+            printf("%d\t", mB[r][c]);
+        }
+        printf("\n");
+    }
+
+    /*
+     * Pass matrices to function
+     */
+    struct args arg;
+
+    arg.mA = mA;
+    arg.mB = mB;
+    arg.mC = mC;
+
+    arg.rA = rA;
+    arg.cA = cA;
+    arg.rB = rB;
+    arg.cB = cB;
+
+    /* Perform Matrix Addition */
+    MatrixMatrixAddition(&arg);
+
+    /* Display and write Matrix C */
+    printf("\nMatrix C = A + B:\n");
+
+    fileOut = fopen("matrixOut.txt", "w");
+
+    if (fileOut == NULL)
+    {
+        printf("Could not create output file.\n");
+        return 1;
+    }
+
+    for (r = 0; r < rC; r++)
+    {
+        for (c = 0; c < cC; c++)
+        {
+            printf("%d\t", mC[r][c]);
+            fprintf(fileOut, "%d ", mC[r][c]);
+        }
+
+        printf("\n");
+        fprintf(fileOut, "\n");
+    }
+
+    fclose(fileOut);
+
+    /*
+     * Free allocated memory
+     */
+    for (i = 0; i < rA; i++)
+    {
+        free(mA[i]);
+    }
+    free(mA);
+
+    for (i = 0; i < rB; i++)
+    {
+        free(mB[i]);
+    }
+    free(mB);
+
+    for (i = 0; i < rC; i++)
+    {
+        free(mC[i]);
+    }
+    free(mC);
+
+    return 0;
+}
+
+
+/*
+ * Matrix Addition
+ *
+ * C[i][j] = A[i][j] + B[i][j]
+ */
+void MatrixMatrixAddition(struct args *arg)
+{
+    int **matrixA = arg->mA;
+    int **matrixB = arg->mB;
+    int **matrixC = arg->mC;
+
+    int rA = arg->rA;
+    int cA = arg->cA;
+
+    int i, j;
+
+    /*
+     * Matrix addition can be parallelized
+     * because every C[i][j] is independent.
+     */
+    #pragma omp parallel for collapse(2)
+    for (i = 0; i < rA; i++)
+    {
+        for (j = 0; j < cA; j++)
+        {
+            matrixC[i][j] = matrixA[i][j] + matrixB[i][j];
+        }
+    }
+}

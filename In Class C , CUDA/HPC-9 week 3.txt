@@ -1,0 +1,158 @@
+in 1st cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc --version
+!pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
+%load_ext nvcc4jupyter
+
+--------------------------------------------------------------------------------------------
+
+2nd cell 
+
+--------------------------------------------------------------------------------------------
+
+%%writefile MatrixMultiplication.cu
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
+
+#define AR 3
+#define AC 4
+#define BR 4
+#define BC 2
+
+void random_ints(int *a, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        a[i] = rand() % 100;
+    }
+}
+
+__global__ void add(int *a, int *b, int *c,
+                    int mASize, int mBSize, int mCSize, int aC)
+{
+    // One thread calculates one element of C
+    int iC = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (iC < mCSize)
+    {
+        int row = iC / BC;
+        int col = iC % BC;
+
+        c[iC] = 0;
+
+        for (int i = 0; i < aC; i++)
+        {
+            int iA = row * aC + i;
+            int iB = i * BC + col;
+
+            if (iA < mASize && iB < mBSize)
+            {
+                c[iC] += a[iA] * b[iB];
+            }
+        }
+    }
+}
+
+int main(void)
+{
+    int *a, *b, *c;
+    int *d_a, *d_b, *d_c;
+
+    int mASize = AR * AC;
+    int mBSize = BR * BC;
+    int mCSize = AR * BC;
+
+    // Allocate host memory
+    a = (int *)malloc(mASize * sizeof(int));
+    b = (int *)malloc(mBSize * sizeof(int));
+    c = (int *)malloc(mCSize * sizeof(int));
+
+    // Generate random values
+    random_ints(a, mASize);
+    random_ints(b, mBSize);
+
+    // Allocate device memory
+    cudaMalloc((void**)&d_a, mASize * sizeof(int));
+    cudaMalloc((void**)&d_b, mBSize * sizeof(int));
+    cudaMalloc((void**)&d_c, mCSize * sizeof(int));
+
+    // Copy A and B to GPU
+    cudaMemcpy(d_a, a, mASize * sizeof(int),
+               cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_b, b, mBSize * sizeof(int),
+               cudaMemcpyHostToDevice);
+
+    // Launch kernel
+    int threads = 4;
+    int blocks = (mCSize + threads - 1) / threads;
+
+    add<<<blocks, threads>>>
+        (d_a, d_b, d_c, mASize, mBSize, mCSize, AC);
+
+    cudaDeviceSynchronize();
+
+    // Copy C back to CPU
+    cudaMemcpy(c, d_c, mCSize * sizeof(int),
+               cudaMemcpyDeviceToHost);
+
+    // Print Matrix A
+    printf("Matrix A:\n");
+
+    for (int i = 0; i < AR; i++)
+    {
+        for (int j = 0; j < AC; j++)
+        {
+            printf("%d ", a[i * AC + j]);
+        }
+        printf("\n");
+    }
+
+    // Print Matrix B
+    printf("\nMatrix B:\n");
+
+    for (int i = 0; i < BR; i++)
+    {
+        for (int j = 0; j < BC; j++)
+        {
+            printf("%d ", b[i * BC + j]);
+        }
+        printf("\n");
+    }
+
+    // Print Matrix C
+    printf("\nMatrix C = A x B:\n");
+
+    for (int i = 0; i < AR; i++)
+    {
+        for (int j = 0; j < BC; j++)
+        {
+            printf("%d ", c[i * BC + j]);
+        }
+        printf("\n");
+    }
+
+    // Cleanup
+    free(a);
+    free(b);
+    free(c);
+
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------
+
+3rd cell
+
+--------------------------------------------------------------------------------------------
+
+!nvcc MatrixMultiplication.cu -o MatrixMultiplication
+!./MatrixMultiplication
