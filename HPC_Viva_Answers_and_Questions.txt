@@ -1,0 +1,238 @@
+HIGH-PERFORMANCE COMPUTING (HPC) – VIVA NOTES
+
+Repository overview:
+The repository contains study materials for High-Performance Computing, covering basic C programming, multi-threading with Pthreads, shared-memory parallelism with OpenMP, and GPU programming with CUDA. The examples include prime number programs, matrix operations, password generation, and Sobel edge detection for image processing.
+
+Short viva answer:
+High-Performance Computing is the use of multiple processors or cores, such as CPU threads or GPU devices, to solve large problems faster and more efficiently. In this repository, this is shown through Pthreads, OpenMP, and CUDA. Pthreads allow multiple CPU threads to work on one task at the same time. OpenMP simplifies parallel programming using directives like #pragma omp parallel for and reduction. CUDA lets the CPU send work to the GPU, where many threads execute in parallel. These techniques improve performance for tasks like matrix addition, prime checking, and image processing.
+
+--------------------------------------------------
+VIVA QUESTIONS WITH ANSWERS
+--------------------------------------------------
+
+1. What is HPC and why is it important?
+Answer:
+HPC means using parallel computing resources to complete large computations quickly. It is important because many real-world tasks are too large for a single processor to handle efficiently, such as scientific computing, simulation, machine learning, image processing, and weather forecasting. HPC allows work to be broken into smaller tasks and processed at the same time.
+
+2. What is the difference between serial and parallel computing?
+Answer:
+Serial computing performs tasks one after another. Parallel computing divides tasks into smaller parts that run at the same time on multiple processors or threads. The examples in the repository show parallel computing using threads and GPU kernels, which reduces execution time significantly.
+
+3. What are Pthreads?
+Answer:
+Pthreads are POSIX threads used in C for multithreading. They allow a program to create multiple threads inside the same process and run them concurrently. In the prime-checking example, each thread works on a different range of numbers and counts prime numbers independently. The main thread collects results using pthread_join.
+
+4. What is OpenMP and what is its purpose?
+Answer:
+OpenMP is an API for parallel programming in shared-memory systems. It is used to parallelize loops and tasks with compiler directives such as #pragma omp parallel and #pragma omp parallel for. In the matrix and prime examples, OpenMP is used to split work among threads and run it in parallel.
+
+5. What is a shared variable and a private variable in OpenMP?
+Answer:
+A shared variable is visible to all threads and is used by multiple threads. A private variable is local to each thread and keeps its own copy. This matters because shared variables can cause data races. Private variables help each thread work independently without interfering with other threads.
+
+6. What is reduction in OpenMP?
+Answer:
+Reduction is used to combine the results of multiple threads into one final value. For example, if each thread computes part of a sum, reduction(+:sum) combines all thread contributions safely. This prevents race conditions when multiple threads update the same variable.
+
+7. Why is matrix addition suitable for parallelization?
+Answer:
+Matrix addition is ideal for parallel processing because each element can be computed independently. Each row or cell can be assigned to a different thread, making the operation faster for large matrices. The repository includes examples where matrix elements are added in parallel using OpenMP.
+
+8. How do we find prime numbers in parallel?
+Answer:
+Prime checking is suitable for parallelization because each number can be tested independently. The program splits the number range across several threads. Each thread checks numbers in its assigned range and counts how many primes it found. The final result is summed by the main thread.
+
+9. What is CUDA?
+Answer:
+CUDA is NVIDIA’s parallel computing platform and application programming interface. It allows programmers to use the GPU for computationally intensive tasks. CUDA programs run code in kernels, which are executed by many threads simultaneously.
+
+10. Explain the CUDA memory flow shown in the code.
+Answer:
+The typical CUDA flow is:
+- allocate memory on the GPU using cudaMalloc
+- copy data from CPU to GPU using cudaMemcpy with cudaMemcpyHostToDevice
+- launch a kernel
+- wait for completion using cudaDeviceSynchronize
+- copy results back to host memory with cudaMemcpy using cudaMemcpyDeviceToHost
+- free GPU memory using cudaFree
+This pattern is used in the GPU examples in the repository.
+
+11. What is a CUDA kernel?
+Answer:
+A kernel is a function that runs on the GPU and is executed by many threads in parallel. In the Sobel edge detection example, each thread processes one pixel and computes its edge value. This allows the image to be processed much faster than using a single CPU thread.
+
+12. Explain the Sobel edge detection example.
+Answer:
+Sobel edge detection is used to highlight the boundaries in an image. The code reads an image, uses convolution with Sobel masks in the x and y directions, and computes the gradient magnitude for each pixel. If a pixel is part of an edge, it becomes brighter. Because each pixel can be processed independently, the GPU is ideal for this operation.
+
+13. What is a race condition?
+Answer:
+A race condition happens when two or more threads access shared data at the same time and at least one thread writes to it without synchronization. This can produce incorrect or unpredictable results. Proper use of private variables, locks, or reduction is needed to avoid races.
+
+14. What is the role of block and thread indexing in CUDA?
+Answer:
+CUDA uses a grid of blocks, and each block contains many threads. The thread and block indices identify the work assigned to each thread. In image processing, these indices are used to calculate which pixel each thread should process. This mapping allows the whole image to be processed in parallel.
+
+15. Why is GPU programming faster for some tasks?
+Answer:
+GPUs have thousands of lightweight cores designed to process many tasks simultaneously. This is especially useful for tasks with a large amount of parallelism, such as image processing, matrix operations, simulations, and deep learning. CPU cores are fewer and more general-purpose, so GPUs can outperform CPUs for these workloads.
+
+--------------------------------------------------
+QUESTIONS TO ASK THE EXAMINER
+--------------------------------------------------
+
+1. What is the difference between OpenMP and CUDA?
+Answer:
+OpenMP is used mainly for parallel programming on CPUs with shared memory. It uses directives such as #pragma omp parallel and #pragma omp parallel for to divide loop iterations among threads. CUDA is designed for GPU programming and uses kernels that run on the GPU, where hundreds or thousands of threads work in parallel. OpenMP is simpler for multicore CPU tasks, while CUDA is better for highly parallel GPU workloads such as image processing and scientific computing.
+
+2. Why do we use private and shared variables in a parallel computing program?
+Answer:
+Shared variables are visible to all threads and are used when multiple threads need to access the same data. Private variables are local to each thread and should be used when each thread performs independent work. Using private variables prevents threads from overwriting each other’s data, while shared variables allow communication or aggregation between threads. This is important for correctness and for avoiding race conditions.
+
+3. What is a reduction clause and why is it important?
+Answer:
+A reduction clause combines values from multiple threads into a single final value. For example, in OpenMP we can write reduction(+:sum) to add partial sums from each thread into one total result. This is important because if multiple threads update a shared variable without reduction, the final value may be inaccurate due to concurrent writes. Reduction ensures safe and correct accumulation.
+
+4. Explain how a multi-threaded prime detection program works.
+Answer:
+A multi-threaded prime detection program splits the range of numbers to be checked among several threads. Each thread receives a start and end value, tests numbers in that range for divisibility, and counts how many primes it found. The main thread waits for all worker threads to finish using pthread_join or thread synchronization. Then it sums the prime counts from every thread to get the final total. This reduces the execution time because different parts of the range are checked simultaneously.
+
+5. How is parallelism different from concurrency?
+Answer:
+Parallelism means multiple tasks actually execute at the same time, usually on multiple processors or cores. Concurrency means multiple tasks are active in overlapping time periods, but they may not run simultaneously on separate hardware. In simple terms, concurrency is about structure and overlap, while parallelism is about simultaneous execution. A multithreaded program may be concurrent, and on a multicore system it may also be parallel.
+
+6. Why are matrix operations a good example of HPC?
+Answer:
+Matrix operations are ideal for HPC because each element can often be computed independently. For example, during matrix addition or multiplication, different rows or cells can be assigned to different threads or GPU blocks. This allows large matrix computations to be distributed across many cores and processed in parallel. The repository includes matrix examples in OpenMP and CUDA, which demonstrate this clearly.
+
+7. What happens if there is a race condition in a threaded system?
+Answer:
+A race condition occurs when two or more threads access and modify the same variable at the same time without proper synchronization. The result depends on the timing of the threads, so it may be incorrect or inconsistent. In prime counting or summation, a race condition can produce the wrong total. To prevent this, programmers use mutexes, barriers, private variables, or reduction operations.
+
+8. How are CUDA threads mapped to image pixels in Sobel edge detection?
+Answer:
+In CUDA, the image is treated as a grid of pixels. Each thread is assigned a unique index based on blockIdx.x, blockIdx.y, threadIdx.x, and threadIdx.y. The program computes the x and y position of the current pixel from these values and applies the Sobel operator to that pixel. Because each pixel is processed independently, thousands of threads can work on different pixels at the same time.
+
+9. Why do we need to synchronize threads in some programs?
+Answer:
+Synchronization is needed when threads depend on each other’s results or when they access shared data. Without synchronization, one thread may read incomplete data or overwrite another thread’s result. Synchronization ensures correct ordering and consistency. In parallel programs, common synchronization methods include barriers, mutexes, condition variables, and reduction operations.
+
+10. How does HPC improve the performance of large-scale calculations?
+Answer:
+HPC improves performance by dividing a large calculation into smaller independent tasks and processing them simultaneously on multiple cores or GPUs. This reduces the overall execution time and allows larger problems to be solved within practical limits. HPC is especially useful for scientific simulations, data processing, machine learning, and image analysis, where single-processor execution would be too slow.
+
+--------------------------------------------------
+FINAL SHORT ANSWER FOR VIVA
+--------------------------------------------------
+HPC is the study and use of parallel and distributed computing to perform complex computations faster. In this repository, examples include Pthreads, OpenMP, and CUDA. Pthreads are used for CPU multithreading, OpenMP helps with loop-level parallelism, and CUDA allows the GPU to accelerate image and numeric computations. These technologies reduce processing time, improve efficiency, and are essential for solving modern high-performance computational problems.
+
+--------------------------------------------------
+EXTENDED DETAILED ANSWERS
+--------------------------------------------------
+
+1. What is parallelism?
+Parallelism is the ability to divide a large task into smaller independent parts and execute them at the same time. For example, in matrix addition, different rows can be processed by different threads. Parallelism increases throughput and improves performance when the problem is computationally large and can be partitioned efficiently.
+
+2. Why do we need HPC?
+We need HPC because many scientific, engineering, and data-processing tasks are too large or too slow for a single processor. HPC helps solve problems involving huge datasets, modeling, simulation, image processing, finance, weather prediction, and AI. The purpose is to reduce runtime and handle bigger workloads.
+
+3. What is a thread?
+A thread is the smallest unit of execution within a process. Threads share the same memory space, which makes communication easier and faster than inter-process communication. In Pthreads programming, each thread can run a separate function at the same time.
+
+4. What is a process?
+A process is an independent running program with its own memory space, resources, and execution context. Threads are lighter than processes and are more suitable for parallel tasks within a single application because they share memory and have lower overhead.
+
+5. What is synchronization?
+Synchronization is the coordination of threads so they do not interfere with each other when accessing shared resources. It is necessary to protect variables and avoid race conditions. In HPC, synchronization can be done using mutexes, barriers, or reduction clauses.
+
+6. What is a mutex?
+A mutex is a lock used to ensure that only one thread can access a critical section at a time. It prevents two threads from writing to the same shared resource simultaneously. In a threaded prime counter, if multiple threads shared the same total variable without protection, the result could be incorrect.
+
+7. What is a barrier?
+A barrier is a synchronization point where threads wait until all have reached the same point before continuing. This is useful in parallel algorithms where one phase must finish before the next phase begins.
+
+8. Why is OpenMP easier than raw threads?
+OpenMP is easier because it uses compiler directives to parallelize code, so the programmer writes less boilerplate code than with Pthreads. For loops, OpenMP can automatically distribute iterations across threads. This makes it convenient for scientific and numerical programming.
+
+9. Why is CUDA good for graphics and image processing?
+CUDA is good for image processing because images are made up of many independent pixels. Each pixel or small region can be processed by one thread. Operations such as Sobel filtering, Gaussian blur, and color transformation are naturally parallel and fit GPU execution well.
+
+10. What is a GPU?
+A GPU is a graphics processing unit designed for parallel computation. It contains thousands of smaller cores compared to a CPU, which has fewer but more powerful cores. This makes GPUs excellent for tasks with lots of parallelizable work.
+
+11. What is host memory and device memory in CUDA?
+Host memory is the system RAM accessible by the CPU. Device memory is the memory on the GPU. The CPU copies input data to the GPU, the GPU computes, and then the CPU copies the result back. This transfer is a crucial part of CUDA programming and must be managed efficiently.
+
+12. What is a grid in CUDA?
+A grid is the complete set of blocks launched for a kernel. Each block runs independently and can contain many threads. The grid organizes the work across the device, allowing large datasets to be processed in parallel.
+
+13. What is a block in CUDA?
+A block is a group of threads that execute together and share block-level memory. Threads in the same block can communicate quickly using shared memory, which is useful for grouped computations.
+
+14. Why do we use cudaDeviceSynchronize()?
+We use cudaDeviceSynchronize() to wait for all GPU threads in a kernel to finish before continuing CPU execution. This ensures that data copied back from the GPU is complete and valid.
+
+15. What is the advantage of using reduction in numerical programs?
+Reduction avoids incorrect accumulation of values from multiple threads. Instead of each thread writing to the same variable unsafely, each thread computes a local partial sum and then the final result is combined. This is efficient and correct.
+
+16. What is the purpose of the Sobel operator?
+The Sobel operator computes the gradient of image intensity in horizontal and vertical directions. This gradient highlights edges in the image. It is widely used in computer vision and image analysis.
+
+17. What is edge detection?
+Edge detection is the process of finding boundaries between objects or regions in an image. A pixel is considered an edge when there is a strong intensity change around it. Sobel edge detection is a common technique used to detect such transitions.
+
+18. What is a race condition and why is it dangerous?
+A race condition is a bug that occurs when multiple threads access shared data without proper synchronization. The final value depends on timing, and the result may vary across runs. In HPC, race conditions can lead to wrong calculations, undefined behavior, and data corruption.
+
+19. What is data parallelism?
+Data parallelism means the same operation is applied to different chunks of data simultaneously. Matrix addition, vector operations, and image pixel processing are classic examples. Data parallelism is the main model used in GPU programming.
+
+20. What is task parallelism?
+Task parallelism means different threads perform different tasks simultaneously. For example, one thread could read input, another could process data, and another could write output. This is different from data parallelism, where the same operation runs on different data items.
+
+21. Why is matrix addition an ideal parallel problem?
+Each element of the matrix can be computed independently. There are no dependencies between cells when performing simple addition. This means the dataset can be divided easily among threads or GPU blocks.
+
+22. What is the difference between OpenMP and CUDA?
+OpenMP is mainly for shared-memory CPU parallelism and is easier to use in C/C++ programs with compiler directives. CUDA is designed for GPU acceleration and uses kernel-based execution across thousands of threads. OpenMP is simpler for CPU multicore systems, while CUDA is more powerful for highly parallel GPU workloads.
+
+23. Explain how a prime number program works in parallel.
+The program divides the number range among threads. Each thread checks its assigned numbers from start to end, tests divisibility, and counts how many primes are found. Then the total is accumulated. This reduces runtime because several numbers are checked at the same time.
+
+24. Why is prime checking a good parallel example?
+Because every number is independent. To test if a number is prime, you only need to check divisibility against smaller numbers. These checks can be shared across threads without needing the result of one check to affect another.
+
+25. What is performance improvement in HPC?
+Performance improvement is the reduction in execution time or increase in throughput when using parallel hardware. HPC improves performance by dividing work into parallel tasks, reducing idle CPU time, and using hardware optimized for concurrency.
+
+26. How do you measure performance in parallel programs?
+Performance is usually measured by runtime, speedup, and efficiency. Speedup compares the time taken by a sequential program to the time taken by a parallel one. Efficiency shows how well the hardware resources are being used.
+
+27. What is Amdahl’s Law?
+Amdahl’s Law explains that the speedup of a parallel program is limited by the portion of the code that cannot be parallelized. Even if many parts are parallel, the serial portion still restricts overall improvement. This is why developers try to minimize serial work.
+
+28. What is speedup?
+Speedup is the ratio of sequential execution time to parallel execution time. If a program runs in 10 seconds sequentially and 4 seconds in parallel, the speedup is 2.5x. Speedup is a key metric in HPC.
+
+29. Why are GPUs faster for some tasks but not all?
+GPUs are faster only for workloads with high parallelism and regular memory access patterns. For tasks with complex branching, small data sizes, or heavy serial dependency, CPUs may be more efficient. So not every application benefits from GPU acceleration.
+
+30. What is the main idea of the whole HPC study in this repository?
+The main idea is that large problems can be solved faster by dividing them into independent tasks and executing them in parallel using CPU threads or GPU kernels. The repository demonstrates the transition from basic C programming to multithreading and GPU programming, showing the practical foundations of HPC.
+
+--------------------------------------------------
+KEY TOPICS TO REMEMBER
+--------------------------------------------------
+- Serial vs parallel computing
+- Pthreads and multithreading
+- OpenMP directives and shared variables
+- Reduction and synchronization
+- Race conditions and deadlocks
+- CUDA kernels, blocks, and threads
+- GPU memory transfer (Host to Device and Device to Host)
+- Sobel edge detection
+- Matrix addition and prime number parallelization
+- Speedup, efficiency, and HPC performance
+
+--------------------------------------------------
+END
